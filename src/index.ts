@@ -81,6 +81,24 @@ app.post('/shorten', (req: Request, res: Response) => {
     })
 })
 
+app.get("/:shortID", (req: Request, res: Response) => {
+    const shortID: string = req.params.shortID as string
+    console.log(shortID)
+    const shortIDRegex = /^[A-Za-z0-9_-]{7}$/;
+
+    if (!shortIDRegex.test(shortID)) {
+        return res.sendStatus(400)
+    }
+
+    const originalUrl = urls.get(shortID)
+
+    if (!originalUrl) {
+        return res.sendStatus(404)
+    }
+
+    res.redirect(originalUrl)
+})
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`The server is running on PORT ${PORT}`);
