@@ -1,13 +1,29 @@
 // src/server.ts
-
-import express, { application } from "express";
+import dotenv from "dotenv"
+import express from "express";
 import { nanoid } from "nanoid"
 import type { Application, Request, Response } from "express"
+import mongoose from "mongoose";
+import { findAll, findID, findURL, insert } from "./crud";
+import { url } from "node:inspector";
+
+dotenv.config()
 
 const app: Application = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const urls: Map<string, string> = new Map()
+
+const mongoURI = process.env.MONGO_URI || "mongodb://mongo:27017/test"
+
+if (mongoURI === "mongodb://mongo:27017/test") {
+    console.warn("MongoDB URI defaulted to test url", mongoURI)
+}
+
+mongoose.connect(mongoURI, {})
+    .then(() => console.log("Connection to MongoDB Successful"))
+    .catch((err) => console.log("Connection Error:", err))
+
 
 app.use(express.json())
 
@@ -20,7 +36,7 @@ app.get("/health", (req: Request, res: Response) => {
     res.json({ status: "ok" });
 });
 
-app.post('/shorten', (req: Request, res: Response) => {
+app.post('/shorten', async (req: Request, res: Response) => {
     let originalUrlStr: string = req.body.originalUrl
 
     console.log(originalUrlStr)
@@ -59,12 +75,18 @@ app.post('/shorten', (req: Request, res: Response) => {
     }
 
     // find the URL if it exists, and if it does return that URL
-    for (const id in urls.keys()) {
-        if (urls.get(id) === originalUrl.toString()) {
-            return res.json({
-                shortURL: id
-            })
-        }
+    // for (const id in urls.keys()) {
+    //     if (urls.get(id) === originalUrl.toString()) {
+    //         return res.json({
+    //             shortURL: id
+    //         })
+    //     }
+    // }
+    const dbURL = await findURL(originalUrl.toString())
+    if (dbURL) {
+        return res.json({
+            shortURL: dbURL.id
+        })
     }
 
     // generate random ID
@@ -73,15 +95,17 @@ app.post('/shorten', (req: Request, res: Response) => {
         id = nanoid(7)
     }
 
-    urls.set(id, originalUrl.toString())
+    // urls.set(id, originalUrl.toString())
+    await insert(id, originalUrl.toString())
 
-    console.log(urls)
+    console.log(await findAll())
+
     res.json({
         shortURL: id
     })
 })
 
-app.get("/:shortID", (req: Request, res: Response) => {
+app.get("/:shortID", async (req: Request, res: Response) => {
     const shortID: string = req.params.shortID as string
     console.log(shortID)
     const shortIDRegex = /^[A-Za-z0-9_-]{7}$/;
@@ -90,13 +114,13 @@ app.get("/:shortID", (req: Request, res: Response) => {
         return res.sendStatus(400)
     }
 
-    const originalUrl = urls.get(shortID)
+    const originalUrl = await findID(shortID)
 
     if (!originalUrl) {
         return res.sendStatus(404)
     }
 
-    res.redirect(originalUrl)
+    res.redirect(originalUrl.url)
 })
 
 // Start the server
