@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsx src/index.ts"
+    "dev": "docker compose up -d --build",
+    "build": "docker compose build",
+    "down": "docker compose down"
   },
   "keywords": [],
   "author": "",
